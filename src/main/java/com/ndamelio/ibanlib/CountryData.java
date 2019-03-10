@@ -1,28 +1,21 @@
 package com.ndamelio.ibanlib;
 
+import com.ndamelio.ibanlib.Exceptions.UnknownCountryDataException;
+
 /**
- * ISO 3166-1 country codes and IBAN-specific format information.
+ * IBAN Registry
+ *
+ * This registry provides detailed information about all ISO 13616-compliant national IBAN formats
  *
  * <p>
- * Based on release 75 of the IBAN Registry, see https://www.swift.com/standards/data-standards/iban
+ * Release 81 - December 2018
+ * IBAN Registry, see https://www.swift.com/standards/data-standards/iban
  * </p>
  *
- * @author Thorsten Frank
+ * @author Nicolas D'Amelio
  */
-public enum CountryCode {
+public enum CountryData {
 
-    /*
-    Document conventions
-    The following character representations are used in this document:
-        n Digits (numeric characters 0 to 9 only)
-        a Upper case letters (alphabetic characters A-Z only)
-        c upper and lower case alphanumeric characters (A-Z, a-z and 0-9)
-        e blank space
-    The following length indications are used in this document:
-        nn! fixed length
-        nn maximum length
-
-    */
     AD(false, "Andorra", 20, "\\d{4}", "\\d{4}", "\\w{12}"),
     AE(false, "United Arab Emirates", 19, "\\d{3}", "\\d{16}"),
     AL(false, "Albania", 24, "\\d{8}", "\\w{16}"), // the spec is unclear about the bank and branch IDs - states 8 as total length, but the spec only notes 7 digits total for these two (Bank: 1-3, Branch: 4-7). We assume the last digit is some sort of check digit, but it's not properly specified - so until that's clear, we can't support separate IDs
@@ -75,7 +68,7 @@ public enum CountryCode {
     MR(false, "Mauritania", 23, "\\d{5}", "\\d{5}", "\\d{11}\\d{2}"),
     MT(true, "Malta", 27, "[A-Z]{4}", "\\d{5}", "\\w{18}"),
     MU(false, "Mauritius", 26, "[A-Z]{4}\\d{2}", "\\d{2}", "\\d{12}\\d{3}\\w{3}"),
-    NL(true, "The Netherlands", 14, "[A-Z]{4}", "\\d{10}"),
+    NL(true, "Netherlands", 14, "[A-Z]{4}", "\\d{10}"),
     NO(true, "Norway", 11, "\\d{4}", "\\d{6}\\d"),
     PK(false, "Pakistan", 20, "[A-Z]{4}", "\\w{16}"),
     PL(true, "Poland", 24, "\\d{8}", "\\d{16}"),
@@ -92,7 +85,7 @@ public enum CountryCode {
     SM(true, "San Marino", 23, "[A-Z]", "\\d{5}", "\\d{5}", "\\w{12}"),
     ST(false, "Sao Tome and Principe", 21, "\\d{4}", "\\d{4}", "\\d{11}\\d{2}"),
     SV(false, "El Salvador", 24, "[A-Z]{4}", "\\d{20}"),
-    TL(false, "Timor East", 19, "\\d{3}", "\\d{14}\\d{2}"),
+    TL(false, "East Timor", 19, "\\d{3}", "\\d{14}\\d{2}"),
     TN(false, "Tunisia", 20, "\\d{2}", "\\d{3}", "\\d{13}\\d{2}"),
     TR(false, "Turkey", 22, "\\d{5}", "\\d\\w{16}"),
     UA(false, "Ukraine", 25, "\\d{6}", "\\w{19}"),
@@ -135,7 +128,7 @@ public enum CountryCode {
      * @param bankIdentifierPattern
      * @param accountNumberPattern
      */
-    private CountryCode(boolean isSepaCountry, String countryName, int bbanLength, String bankIdentifierPattern, String accountNumberPattern) {
+    private CountryData(boolean isSepaCountry, String countryName, int bbanLength, String bankIdentifierPattern, String accountNumberPattern) {
         this(isSepaCountry, countryName, bbanLength, bankIdentifierPattern, null, accountNumberPattern);
     }
 
@@ -145,7 +138,7 @@ public enum CountryCode {
      * @param branchIdentifierPattern
      * @param accountNumberPattern
      */
-    private CountryCode(boolean isSepaCountry, String countryName, int bbanLength, String bankIdentifierPattern, String branchIdentifierPattern,
+    private CountryData(boolean isSepaCountry, String countryName, int bbanLength, String bankIdentifierPattern, String branchIdentifierPattern,
                         String accountNumberPattern) {
         this(isSepaCountry, countryName, bbanLength, null, bankIdentifierPattern, branchIdentifierPattern, accountNumberPattern);
     }
@@ -157,8 +150,9 @@ public enum CountryCode {
      * @param branchIdentifierPattern
      * @param accountNumberPattern
      */
-    private CountryCode(boolean isSepaCountry, String countryName, int bbanLength, String bbanPrefixPattern, String bankIdentifierPattern, String branchIdentifierPattern,
+    private CountryData(boolean isSepaCountry, String countryName, int bbanLength, String bbanPrefixPattern, String bankIdentifierPattern, String branchIdentifierPattern,
                         String accountNumberPattern) {
+        this.isSepaCountry = isSepaCountry;
         this.countryName = countryName;
         this.bbanLength = bbanLength;
         this.bbanPrefixPattern = bbanPrefixPattern;
@@ -181,5 +175,57 @@ public enum CountryCode {
 
         this.bbanPattern = sb.toString();
         this.ibanPattern = name() + CHECK_DIGITS_PATTERN + bbanPattern;
+    }
+
+    public int getBbanLength() {
+        return bbanLength;
+    }
+
+    public String getBbanPattern() {
+        return bbanPattern;
+    }
+
+    public String getIbanPattern() {
+        return ibanPattern;
+    }
+
+    public String getBbanPrefixPattern() {
+        return bbanPrefixPattern;
+    }
+
+    public boolean hasBbanPrefix() {
+        return bbanPrefixPattern != null;
+    }
+
+    public String getBankIdentifierPattern() {
+        return bankIdentifierPattern;
+    }
+
+    public String getBranchIdentifierPattern() {
+        return branchIdentifierPattern;
+    }
+
+    public boolean hasBranchIdentifier() {
+        return branchIdentifierPattern != null;
+    }
+
+    public String getAccountNumberPattern() {
+        return accountNumberPattern;
+    }
+
+    public String getCountryName() {
+        return countryName;
+    }
+
+    public boolean isSepaCountry() {
+        return isSepaCountry;
+    }
+
+    public static CountryData fromString(String cc) {
+        try {
+            return valueOf(cc);
+        } catch (IllegalArgumentException e) {
+            throw new UnknownCountryDataException(cc);
+        }
     }
 }
